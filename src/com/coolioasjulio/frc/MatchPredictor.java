@@ -75,7 +75,10 @@ public class MatchPredictor {
 					input[index++] = score.autoFuelLow;
 				}
 				System.out.println(Arrays.toString(input));
-				System.out.println(Arrays.toString(network.guess(input, true)));				
+				double[] result = network.guess(input, true);
+				System.out.println("Blue probability: " + result[0] + "%");
+				System.out.println("Red probability: " + result[1] + "%");
+				System.out.println("Tie probability: " + result[2] + "%");			
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
