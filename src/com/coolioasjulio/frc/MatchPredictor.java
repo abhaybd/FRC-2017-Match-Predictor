@@ -4,6 +4,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.util.ArrayList;
@@ -19,8 +21,13 @@ import com.google.gson.reflect.TypeToken;
 public class MatchPredictor {
 	public static void main(String[] args){
 		MatchPredictor mp = new MatchPredictor();
-		try {
-			mp.train();
+		try (Scanner in = new Scanner(System.in)){
+			System.out.println("Train again with updated data? This will take a while. y/n");
+			char response = in.nextLine().charAt(0);
+			if(response != 'n'){
+				mp.train();				
+			}
+			mp.guessRepeat();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -33,8 +40,8 @@ public class MatchPredictor {
 	}
 	
 	public void train() throws IOException{
-		DataPoint[] dps = loadData();
-		saveData(dps);
+		DataPoint[] dps = getData();
+		saveData(dps,"data.dat");
 		double[][] inputs = new double[dps.length][];
 		double[][] outputs = new double[dps.length][];
 		for(int i = 0; i < dps.length; i++){
@@ -44,23 +51,55 @@ public class MatchPredictor {
 		System.out.println(Arrays.toString(dps) + dps.length);
 		network.train(inputs, outputs, 0.1, 0.9, 3000);
 		
-		
-		System.out.println(dps.length);
-		Scanner in = new Scanner(System.in);
-		System.out.println("Type in an index number");
-		int index = in.nextInt();
-		in.nextLine();
-		System.out.println(Arrays.toString(dps[index].input));
-		System.out.println(Arrays.toString(dps[index].output));
-		System.out.println(Arrays.toString(network.guess(dps[index].input,true)));
-		in.close();
+		ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("match.net"));
+		oos.writeObject(network);
+		oos.flush();
+		oos.close();
 	}
 	
-	public void saveData(Object obj){
-		try(PrintWriter out = new PrintWriter(new FileOutputStream("data.dat"))){
+	public void guessRepeat(){
+		try(Scanner in = new Scanner(System.in)){
+			network = loadNetwork();
+			double[] input = new double[42];
+			String[] teams = getTeams(in);
+			int index = 0;
+			for(String team:teams){
+				Score score = normalizeScore(APIUtils.getAvgSeasonScore(team));
+				input[index++] = score.totalPoints;
+				input[index++] = score.teleopPoints;
+				input[index++] = score.autoPoints;
+				input[index++] = score.autoRotorPoints;
+				input[index++] = score.autoMobilityPoints;
+				input[index++] = score.autoFuelHigh;
+				input[index++] = score.autoFuelLow;
+			}
+			System.out.println(Arrays.toString(input));
+			System.out.println(Arrays.toString(network.guess(input, true)));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public String[] getTeams(Scanner in){
+		List<String> teams = new ArrayList<String>();
+		System.out.println("Teams on blue alliance? Input in a list, seperated only by commas. Ex: frc492,frc420,frc6969");
+		teams.addAll(Arrays.asList(in.nextLine().replace(" ", "").split(",")));
+		System.out.println("Teams on red alliance? Input in a list, speerated only by commas. Ex: frc492,frc420,frc6969");
+		teams.addAll(Arrays.asList(in.nextLine().replace(" ", ",").split(",")));
+		return teams.toArray(new String[0]);
+	}
+	
+	public void saveData(Object obj, String path){
+		try(PrintWriter out = new PrintWriter(new FileOutputStream(path))){
 			out.print(new Gson().toJson(obj));
 		} catch(IOException e){
 			e.printStackTrace();
+		}
+	}
+	
+	private NeuralNetwork loadNetwork() throws Exception{
+		try(ObjectInputStream ois = new ObjectInputStream(new FileInputStream("match.net"))){
+			return (NeuralNetwork)ois.readObject();			
 		}
 	}
 	
@@ -68,6 +107,18 @@ public class MatchPredictor {
 		Reader reader = new InputStreamReader(new FileInputStream("data.dat"));
 		List<DataPoint> dps = new Gson().fromJson(reader, new TypeToken<List<DataPoint>>(){}.getType());
 		return dps.toArray(new DataPoint[0]);
+	}
+	
+	private Score normalizeScore(Score score){
+		Score normalized = new Score();
+		normalized.totalPoints = score.totalPoints/500;
+		normalized.teleopPoints = score.teleopPoints/500;
+		normalized.autoPoints = score.autoPoints/75;
+		normalized.autoRotorPoints = score.autoRotorPoints/60;
+		normalized.autoMobilityPoints = score.autoMobilityPoints/50;
+		normalized.autoFuelHigh = score.autoFuelHigh/10;
+		normalized.autoFuelLow = score.autoFuelLow/3;
+		return normalized;
 	}
 	
 	public DataPoint[] getData() throws IOException{
@@ -85,24 +136,26 @@ public class MatchPredictor {
 				else if(match.getWinner() == null) dp.output[2] = 1;
 				int index = 0;
 				for(String id:match.getAlliances().getBlue().getTeams()){
-					Score score = APIUtils.getAvgSeasonScore(id);
-					dp.input[index++] = score.totalPoints/500;
-					dp.input[index++] = score.teleopPoints/500;
-					dp.input[index++] = score.autoPoints/75;
-					dp.input[index++] = score.autoRotorPoints/60;
-					dp.input[index++] = score.autoMobilityPoints/50;
-					dp.input[index++] = score.autoFuelHigh/10;
-					dp.input[index++] = score.autoFuelLow/3;
+					Score s = APIUtils.getAvgSeasonScore(id);
+					Score score = normalizeScore(s);
+					dp.input[index++] = score.totalPoints;
+					dp.input[index++] = score.teleopPoints;
+					dp.input[index++] = score.autoPoints;
+					dp.input[index++] = score.autoRotorPoints;
+					dp.input[index++] = score.autoMobilityPoints;
+					dp.input[index++] = score.autoFuelHigh;
+					dp.input[index++] = score.autoFuelLow;
 				}
 				for(String id:match.getAlliances().getRed().getTeams()){
-					Score score = APIUtils.getAvgSeasonScore(id);
-					dp.input[index++] = score.totalPoints/500;
-					dp.input[index++] = score.teleopPoints/500;
-					dp.input[index++] = score.autoPoints/75;
-					dp.input[index++] = score.autoRotorPoints/60;
-					dp.input[index++] = score.autoMobilityPoints/50;
-					dp.input[index++] = score.autoFuelHigh/10;
-					dp.input[index++] = score.autoFuelLow/3;
+					Score s = APIUtils.getAvgSeasonScore(id);
+					Score score = normalizeScore(s);
+					dp.input[index++] = score.totalPoints;
+					dp.input[index++] = score.teleopPoints;
+					dp.input[index++] = score.autoPoints;
+					dp.input[index++] = score.autoRotorPoints;
+					dp.input[index++] = score.autoMobilityPoints;
+					dp.input[index++] = score.autoFuelHigh;
+					dp.input[index++] = score.autoFuelLow;
 				}
 				System.out.println("Input: " + Arrays.toString(dp.input));
 				System.out.println("Output: " + Arrays.toString(dp.output));
