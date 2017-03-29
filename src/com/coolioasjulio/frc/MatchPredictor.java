@@ -61,20 +61,22 @@ public class MatchPredictor {
 		try(Scanner in = new Scanner(System.in)){
 			network = loadNetwork();
 			double[] input = new double[42];
-			String[] teams = getTeams(in);
-			int index = 0;
-			for(String team:teams){
-				Score score = normalizeScore(APIUtils.getAvgSeasonScore(team));
-				input[index++] = score.totalPoints;
-				input[index++] = score.teleopPoints;
-				input[index++] = score.autoPoints;
-				input[index++] = score.autoRotorPoints;
-				input[index++] = score.autoMobilityPoints;
-				input[index++] = score.autoFuelHigh;
-				input[index++] = score.autoFuelLow;
+			while(true){
+				String[] teams = getTeams(in);
+				int index = 0;
+				for(String team:teams){
+					Score score = normalizeScore(APIUtils.getAvgSeasonScore(team));
+					input[index++] = score.totalPoints;
+					input[index++] = score.teleopPoints;
+					input[index++] = score.autoPoints;
+					input[index++] = score.autoRotorPoints;
+					input[index++] = score.autoMobilityPoints;
+					input[index++] = score.autoFuelHigh;
+					input[index++] = score.autoFuelLow;
+				}
+				System.out.println(Arrays.toString(input));
+				System.out.println(Arrays.toString(network.guess(input, true)));				
 			}
-			System.out.println(Arrays.toString(input));
-			System.out.println(Arrays.toString(network.guess(input, true)));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
