@@ -39,6 +39,10 @@ public class MatchPredictor {
 		network = new NeuralNetwork(new int[]{42,20,3}, new int[]{1,1,0});
 	}
 	
+	/**
+	 * Trains neural network and saves it to match.net
+	 * @throws IOException if connection fails
+	 */
 	public void train() throws IOException{
 		DataPoint[] dps = getData();
 		saveData(dps,"data.dat");
@@ -57,37 +61,9 @@ public class MatchPredictor {
 		oos.close();
 	}
 	
-	private double[] sortScores(Score...scores){
-		List<Score> sorted = new ArrayList<Score>();
-		for(Score score:scores){
-			if(sorted.size() == 0){
-				sorted.add(score);
-				continue;
-			}
-			for(int i = 0; i < sorted.size(); i++){
-				if(score.totalPoints >= sorted.get(i).totalPoints){
-					sorted.add(i, score);
-					break;
-				}
-				else if(i == sorted.size() - 1){
-					sorted.add(score);
-				}
-			}
-		}
-		double[] toReturn = new double[sorted.size()*7];
-		int index = 0;
-		for(Score score:sorted){
-			toReturn[index++] = score.totalPoints;
-			toReturn[index++] = score.teleopPoints;
-			toReturn[index++] = score.autoPoints;
-			toReturn[index++] = score.autoRotorPoints;
-			toReturn[index++] = score.autoMobilityPoints;
-			toReturn[index++] = score.autoFuelHigh;
-			toReturn[index++] = score.autoFuelLow;
-		}
-		return toReturn;
-	}
-	
+	/**
+	 * Prompt the user for repeated guesses
+	 */
 	public void guessRepeat(){
 		try(Scanner in = new Scanner(System.in)){
 			network = loadNetwork();
@@ -131,7 +107,48 @@ public class MatchPredictor {
 		}
 	}
 	
-	public String[] getTeams(Scanner in){
+	/**
+	 * Sort scores from high -> low based on total points
+	 * @param scores Scores to sort
+	 * @return double[] with length 7 times that of @scores, because 7 datapoints per score.
+	 */
+	private double[] sortScores(Score...scores){
+		List<Score> sorted = new ArrayList<Score>();
+		for(Score score:scores){
+			if(sorted.size() == 0){
+				sorted.add(score);
+				continue;
+			}
+			for(int i = 0; i < sorted.size(); i++){
+				if(score.totalPoints >= sorted.get(i).totalPoints){
+					sorted.add(i, score);
+					break;
+				}
+				else if(i == sorted.size() - 1){
+					sorted.add(score);
+				}
+			}
+		}
+		double[] toReturn = new double[sorted.size()*7];
+		int index = 0;
+		for(Score score:sorted){
+			toReturn[index++] = score.totalPoints;
+			toReturn[index++] = score.teleopPoints;
+			toReturn[index++] = score.autoPoints;
+			toReturn[index++] = score.autoRotorPoints;
+			toReturn[index++] = score.autoMobilityPoints;
+			toReturn[index++] = score.autoFuelHigh;
+			toReturn[index++] = score.autoFuelLow;
+		}
+		return toReturn;
+	}
+	
+	/**
+	 * Promp the user for 3 blue and red teams
+	 * @param in Scanner to get input from
+	 * @return String[] of length 6 of teams. 0-2 are blue, 3-5 are red.
+	 */
+	private String[] getTeams(Scanner in){
 		List<String> teams = new ArrayList<String>();
 		System.out.println("Teams on blue alliance? Input in a list, separated only by commas. Ex: frc492,frc420,frc6969");
 		teams.addAll(Arrays.asList(in.nextLine().replace(" ", "").split(",")));
@@ -140,7 +157,12 @@ public class MatchPredictor {
 		return teams.toArray(new String[0]);
 	}
 	
-	public void saveData(Object obj, String path){
+	/**
+	 * Save data as JSON to path @path
+	 * @param obj Object to save
+	 * @param path Path to store JSON file.
+	 */
+	private void saveData(Object obj, String path){
 		try(PrintWriter out = new PrintWriter(new FileOutputStream(path))){
 			out.print(new Gson().toJson(obj));
 		} catch(IOException e){
@@ -148,18 +170,34 @@ public class MatchPredictor {
 		}
 	}
 	
+	/**
+	 * Deserialize and return neuralnetwork from file match.net
+	 * @return Deserialized neural network
+	 * @throws Exception if file not found or if class not found.
+	 */
 	private NeuralNetwork loadNetwork() throws Exception{
 		try(ObjectInputStream ois = new ObjectInputStream(new FileInputStream("match.net"))){
 			return (NeuralNetwork)ois.readObject();			
 		}
 	}
 	
-	public DataPoint[] loadData() throws IOException{
+	@SuppressWarnings("unused")
+	/**
+	 * Loads JSON data from disk.
+	 * @return DataPoint[] from JSON
+	 * @throws IOException If file not found.
+	 */
+	private DataPoint[] loadData() throws IOException{
 		Reader reader = new InputStreamReader(new FileInputStream("data.dat"));
 		List<DataPoint> dps = new Gson().fromJson(reader, new TypeToken<List<DataPoint>>(){}.getType());
 		return dps.toArray(new DataPoint[0]);
 	}
 	
+	/**
+	 * Normalizes score to make all values between 0 and 1
+	 * @param score Score to normalize
+	 * @return New instance of normalized score
+	 */
 	private Score normalizeScore(Score score){
 		Score normalized = new Score();
 		normalized.totalPoints = score.totalPoints/500;
@@ -172,7 +210,12 @@ public class MatchPredictor {
 		return normalized;
 	}
 	
-	public DataPoint[] getData() throws IOException{
+	/**
+	 * Gets new data from TBA API
+	 * @return DataPoint[] from the web
+	 * @throws IOException if connection fails.
+	 */
+	private DataPoint[] getData() throws IOException{
 		Event[] events = APIUtils.getEvents("pnw", 2017);
 		List<DataPoint> dataPoints = new ArrayList<DataPoint>();
 		for(Event event:events){

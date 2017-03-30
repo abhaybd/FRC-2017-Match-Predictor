@@ -27,11 +27,13 @@ public class APIUtils {
 	/**
 	 * Queries url with stub and returns json
 	 * @param url url WITHOUT domain stub to query
-	 * @return JSON
+	 * @return JSON returned by url as Type @type
 	 * @throws IOException if connection fails
 	 */
 	@SuppressWarnings("unchecked")
 	private static <T> T getJSON(String url, Type type) throws IOException{
+		url = url.replace(domain, "");
+		if(url.charAt(0) != '/') url = "/" + url;
 		URLConnection connection = new URL(domain + url).openConnection();
 		connection.addRequestProperty("X-TBA-App-Id", "frc492:match-prediction:1");
 		connection.addRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:25.0) Gecko/20100101 Firefox/25.0");
