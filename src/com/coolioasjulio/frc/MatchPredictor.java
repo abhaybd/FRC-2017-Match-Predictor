@@ -57,28 +57,74 @@ public class MatchPredictor {
 		oos.close();
 	}
 	
+	private double[] sortScores(Score...scores){
+		List<Score> sorted = new ArrayList<Score>();
+		for(Score score:scores){
+			if(sorted.size() == 0){
+				sorted.add(score);
+				continue;
+			}
+			for(int i = 0; i < sorted.size(); i++){
+				if(score.totalPoints >= sorted.get(i).totalPoints){
+					sorted.add(i, score);
+					break;
+				}
+				else if(i == sorted.size() - 1){
+					sorted.add(score);
+				}
+			}
+		}
+		double[] toReturn = new double[sorted.size()*7];
+		int index = 0;
+		for(Score score:sorted){
+			toReturn[index++] = score.totalPoints;
+			toReturn[index++] = score.teleopPoints;
+			toReturn[index++] = score.autoPoints;
+			toReturn[index++] = score.autoRotorPoints;
+			toReturn[index++] = score.autoMobilityPoints;
+			toReturn[index++] = score.autoFuelHigh;
+			toReturn[index++] = score.autoFuelLow;
+		}
+		return toReturn;
+	}
+	
 	public void guessRepeat(){
 		try(Scanner in = new Scanner(System.in)){
 			network = loadNetwork();
 			double[] input = new double[42];
 			while(true){
 				String[] teams = getTeams(in);
-				int index = 0;
-				for(String team:teams){
-					Score score = normalizeScore(APIUtils.getAvgSeasonScore(team));
-					input[index++] = score.totalPoints;
-					input[index++] = score.teleopPoints;
-					input[index++] = score.autoPoints;
-					input[index++] = score.autoRotorPoints;
-					input[index++] = score.autoMobilityPoints;
-					input[index++] = score.autoFuelHigh;
-					input[index++] = score.autoFuelLow;
+				
+				String[] blue = Arrays.copyOfRange(teams, 0, 3);
+				String[] red = Arrays.copyOfRange(teams, 3, 6);
+				
+				List<Score> blueScoreList = new ArrayList<Score>();
+				for(String id:blue){
+					blueScoreList.add(normalizeScore(APIUtils.getAvgSeasonScore(id)));
 				}
+				
+				List<Score> redScoreList = new ArrayList<Score>();
+				for(String id:red){
+					redScoreList.add(normalizeScore(APIUtils.getAvgSeasonScore(id)));
+				}
+				
+				double[] blueScore = sortScores(blueScoreList.toArray(new Score[0]));
+				double[] redScore = sortScores(redScoreList.toArray(new Score[0]));
+				
+				for(int i = 0; i < input.length; i++){
+					if(i < 21){
+						input[i] = blueScore[i];
+					}
+					else{
+						input[i] = redScore[i-21];
+					}
+				}
+				
 				System.out.println(Arrays.toString(input));
 				double[] result = network.guess(input, true);
-				System.out.println("Blue probability: " + result[0] + "%");
-				System.out.println("Red probability: " + result[1] + "%");
-				System.out.println("Tie probability: " + result[2] + "%");			
+				System.out.println("Blue probability: " + (float)result[0]*100f + "%");
+				System.out.println("Red probability: " + (float)result[1]*100f + "%");
+				System.out.println("Tie probability: " + (float)result[2]*100f + "%");			
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -87,9 +133,9 @@ public class MatchPredictor {
 	
 	public String[] getTeams(Scanner in){
 		List<String> teams = new ArrayList<String>();
-		System.out.println("Teams on blue alliance? Input in a list, seperated only by commas. Ex: frc492,frc420,frc6969");
+		System.out.println("Teams on blue alliance? Input in a list, separated only by commas. Ex: frc492,frc420,frc6969");
 		teams.addAll(Arrays.asList(in.nextLine().replace(" ", "").split(",")));
-		System.out.println("Teams on red alliance? Input in a list, speerated only by commas. Ex: frc492,frc420,frc6969");
+		System.out.println("Teams on red alliance? Input in a list, separated only by commas. Ex: frc492,frc420,frc6969");
 		teams.addAll(Arrays.asList(in.nextLine().replace(" ", ",").split(",")));
 		return teams.toArray(new String[0]);
 	}
@@ -139,32 +185,31 @@ public class MatchPredictor {
 				if(match.getWinner() == Color.BLUE) dp.output[0] = 1;
 				else if(match.getWinner() == Color.RED) dp.output[1] = 1;
 				else if(match.getWinner() == null) dp.output[2] = 1;
-				int index = 0;
+				
+				List<Score> blueScoreList = new ArrayList<Score>();
 				for(String id:match.getAlliances().getBlue().getTeams()){
-					Score s = APIUtils.getAvgSeasonScore(id);
-					Score score = normalizeScore(s);
-					dp.input[index++] = score.totalPoints;
-					dp.input[index++] = score.teleopPoints;
-					dp.input[index++] = score.autoPoints;
-					dp.input[index++] = score.autoRotorPoints;
-					dp.input[index++] = score.autoMobilityPoints;
-					dp.input[index++] = score.autoFuelHigh;
-					dp.input[index++] = score.autoFuelLow;
+					blueScoreList.add(normalizeScore(APIUtils.getAvgSeasonScore(id)));
 				}
+				
+				List<Score> redScoreList = new ArrayList<Score>();
 				for(String id:match.getAlliances().getRed().getTeams()){
-					Score s = APIUtils.getAvgSeasonScore(id);
-					Score score = normalizeScore(s);
-					dp.input[index++] = score.totalPoints;
-					dp.input[index++] = score.teleopPoints;
-					dp.input[index++] = score.autoPoints;
-					dp.input[index++] = score.autoRotorPoints;
-					dp.input[index++] = score.autoMobilityPoints;
-					dp.input[index++] = score.autoFuelHigh;
-					dp.input[index++] = score.autoFuelLow;
+					redScoreList.add(normalizeScore(APIUtils.getAvgSeasonScore(id)));
 				}
+				
+				double[] blueScore = sortScores(blueScoreList.toArray(new Score[0]));
+				double[] redScore = sortScores(redScoreList.toArray(new Score[0]));
+				
+				for(int i = 0; i < dp.input.length; i++){
+					if(i < 21){
+						dp.input[i] = blueScore[i];
+					}
+					else{
+						dp.input[i] = redScore[i-21];
+					}
+				}
+				dataPoints.add(dp);
 				System.out.println("Input: " + Arrays.toString(dp.input));
 				System.out.println("Output: " + Arrays.toString(dp.output));
-				dataPoints.add(dp);
 			}
 		}
 		return dataPoints.toArray(new DataPoint[0]);
