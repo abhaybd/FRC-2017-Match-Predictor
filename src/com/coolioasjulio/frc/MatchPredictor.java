@@ -1,5 +1,7 @@
 package com.coolioasjulio.frc;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -44,6 +46,12 @@ public class MatchPredictor {
 	 * @throws IOException if connection fails
 	 */
 	public void train() throws IOException{
+		buildIndexes();
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		DataPoint[] dps = getData();
 		saveData(dps,"data.dat");
 		double[][] inputs = new double[dps.length][];
@@ -76,12 +84,12 @@ public class MatchPredictor {
 				
 				List<Score> blueScoreList = new ArrayList<Score>();
 				for(String id:blue){
-					blueScoreList.add(normalizeScore(APIUtils.getAvgSeasonScore(id)));
+					blueScoreList.add(normalizeScore(getScore(id)));
 				}
 				
 				List<Score> redScoreList = new ArrayList<Score>();
 				for(String id:red){
-					redScoreList.add(normalizeScore(APIUtils.getAvgSeasonScore(id)));
+					redScoreList.add(normalizeScore(getScore(id)));
 				}
 				
 				double[] blueScore = sortScores(blueScoreList.toArray(new Score[0]));
@@ -105,6 +113,64 @@ public class MatchPredictor {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	/**
+	 * Build team indexes
+	 * @throws IOException if TBA API fails
+	 */
+	private void buildIndexes() throws IOException{
+		List<Team> teams = new ArrayList<Team>();
+		//teams.addAll(Arrays.asList(APIUtils.getTeams("pnw", 2017)));
+		String[] regions = new String[]{"chs","fim","in","isr","mar","nc","ne","ont","pch","pnw"};
+		for(String region:regions){
+			teams.addAll(Arrays.asList(APIUtils.getTeams(region, 2017)));
+		}
+		
+		File folder = new File("teams");
+		deleteFolder(folder);
+		folder.mkdir();
+		
+		Gson gson = new Gson();
+		for(Team team:teams){
+			try(PrintWriter out = new PrintWriter("teams/" + team.getKey() + ".team")){
+				System.out.println(team.toString());
+				String json = gson.toJson(APIUtils.getAvgSeasonScore(team.getKey()));
+				out.println(json);
+				out.flush();
+			}
+			catch(IOException | NullPointerException e){
+				e.printStackTrace();
+			}
+		}
+	}
+
+	/**
+	 * Recursively deletes folder
+	 * @param folder Folder to recursively delete. This folder will be deleted too.
+	 */
+	private void deleteFolder(File folder){
+		if(folder.isFile() || !folder.exists()) return;
+		for(File file:folder.listFiles()){
+			if(file.isDirectory()) deleteFolder(file);
+			file.delete();
+		}
+	}
+	
+	/**
+	 * Looks up score for team in indexes. If it fails, return using the TBA API
+	 * @param id FRC specified team id
+	 * @return non normalized Score for this id
+	 * @throws IOException if API connection fails
+	 */
+	private Score getScore(String id) throws IOException{
+		try(BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream("teams/" + id + ".team")))){
+			Gson gson = new Gson();
+			return gson.fromJson(in, new TypeToken<Score>(){}.getType());
+		} catch (IOException e) {
+			return APIUtils.getAvgSeasonScore(id);
+		}
+		
 	}
 	
 	/**
@@ -231,12 +297,12 @@ public class MatchPredictor {
 				
 				List<Score> blueScoreList = new ArrayList<Score>();
 				for(String id:match.getAlliances().getBlue().getTeams()){
-					blueScoreList.add(normalizeScore(APIUtils.getAvgSeasonScore(id)));
+					blueScoreList.add(normalizeScore(getScore(id)));
 				}
 				
 				List<Score> redScoreList = new ArrayList<Score>();
 				for(String id:match.getAlliances().getRed().getTeams()){
-					redScoreList.add(normalizeScore(APIUtils.getAvgSeasonScore(id)));
+					redScoreList.add(normalizeScore(getScore(id)));
 				}
 				
 				double[] blueScore = sortScores(blueScoreList.toArray(new Score[0]));
