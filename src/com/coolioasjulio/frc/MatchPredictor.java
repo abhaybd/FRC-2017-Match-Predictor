@@ -38,7 +38,7 @@ public class MatchPredictor {
 	private NeuralNetwork network;
 	
 	public MatchPredictor(){
-		network = new NeuralNetwork(new int[]{42,20,3}, new int[]{1,1,0});
+		network = new NeuralNetwork(new int[]{60,20,3}, new int[]{1,1,0});
 	}
 	
 	/**
@@ -75,7 +75,7 @@ public class MatchPredictor {
 	public void guessRepeat(){
 		try(Scanner in = new Scanner(System.in)){
 			network = loadNetwork();
-			double[] input = new double[42];
+			double[] input = new double[60];
 			while(true){
 				String[] teams = getTeams(in);
 				
@@ -96,11 +96,11 @@ public class MatchPredictor {
 				double[] redScore = sortScores(redScoreList.toArray(new Score[0]));
 				
 				for(int i = 0; i < input.length; i++){
-					if(i < 21){
+					if(i < 30){
 						input[i] = blueScore[i];
 					}
 					else{
-						input[i] = redScore[i-21];
+						input[i] = redScore[i-30];
 					}
 				}
 				
@@ -134,8 +134,8 @@ public class MatchPredictor {
 		Gson gson = new Gson();
 		for(Team team:teams){
 			try(PrintWriter out = new PrintWriter("teams/" + team.getKey() + ".team")){
-				System.out.println(team.toString());
 				String json = gson.toJson(APIUtils.getAvgSeasonScore(team.getKey()));
+				System.out.println(json);
 				out.println(json);
 				out.flush();
 			}
@@ -176,7 +176,7 @@ public class MatchPredictor {
 	/**
 	 * Sort scores from high -> low based on total points
 	 * @param scores Scores to sort
-	 * @return double[] with length 7 times that of @scores, because 7 datapoints per score.
+	 * @return double[] with length 10 times that of @scores, because 10 datapoints per score.
 	 */
 	private double[] sortScores(Score...scores){
 		List<Score> sorted = new ArrayList<Score>();
@@ -195,7 +195,7 @@ public class MatchPredictor {
 				}
 			}
 		}
-		double[] toReturn = new double[sorted.size()*7];
+		double[] toReturn = new double[sorted.size()*10];
 		int index = 0;
 		for(Score score:sorted){
 			toReturn[index++] = score.totalPoints;
@@ -205,6 +205,9 @@ public class MatchPredictor {
 			toReturn[index++] = score.autoMobilityPoints;
 			toReturn[index++] = score.autoFuelHigh;
 			toReturn[index++] = score.autoFuelLow;
+			toReturn[index++] = score.teleopRotorPoints;
+			toReturn[index++] = score.teleopFuelHigh;
+			toReturn[index++] = score.teleopFuelLow;
 		}
 		return toReturn;
 	}
@@ -273,6 +276,9 @@ public class MatchPredictor {
 		normalized.autoMobilityPoints = score.autoMobilityPoints/50;
 		normalized.autoFuelHigh = score.autoFuelHigh/10;
 		normalized.autoFuelLow = score.autoFuelLow/3;
+		normalized.teleopRotorPoints = score.teleopRotorPoints / 300;
+		normalized.teleopFuelHigh = score.teleopFuelHigh/300;
+		normalized.teleopFuelLow = score.teleopFuelLow/300;
 		return normalized;
 	}
 	
@@ -288,7 +294,7 @@ public class MatchPredictor {
 			Match[] matches = APIUtils.getEventMatches(event);
 			for(Match match:matches){
 				DataPoint dp = new DataPoint();
-				dp.input = new double[42];
+				dp.input = new double[60];
 				dp.output = new double[3];
 				
 				if(match.getWinner() == Color.BLUE) dp.output[0] = 1;
@@ -309,11 +315,11 @@ public class MatchPredictor {
 				double[] redScore = sortScores(redScoreList.toArray(new Score[0]));
 				
 				for(int i = 0; i < dp.input.length; i++){
-					if(i < 21){
+					if(i < 30){
 						dp.input[i] = blueScore[i];
 					}
 					else{
-						dp.input[i] = redScore[i-21];
+						dp.input[i] = redScore[i-30];
 					}
 				}
 				dataPoints.add(dp);

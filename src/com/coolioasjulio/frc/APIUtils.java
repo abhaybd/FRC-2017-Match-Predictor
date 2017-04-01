@@ -110,6 +110,9 @@ public class APIUtils {
 			score.autoMobilityPoints += s.autoMobilityPoints / (double)events.length;
 			score.autoFuelHigh += s.autoFuelHigh / (double)events.length;
 			score.autoFuelLow += s.autoFuelLow / (double)events.length;
+			score.teleopRotorPoints += s.teleopRotorPoints / (double)events.length;
+			score.teleopFuelHigh += s.teleopFuelHigh / (double)events.length;
+			score.teleopFuelLow += s.teleopFuelLow / (double)events.length;
 		}
 		return score;
 	}
@@ -134,6 +137,9 @@ public class APIUtils {
 			score.autoMobilityPoints += s.autoMobilityPoints / (double)matches.length;
 			score.autoFuelHigh += s.autoFuelHigh / (double)matches.length;
 			score.autoFuelLow += s.autoFuelLow / (double)matches.length;
+			score.teleopRotorPoints += s.teleopRotorPoints / (double)matches.length;
+			score.teleopFuelHigh += s.teleopFuelHigh / (double)matches.length;
+			score.teleopFuelLow += s.teleopFuelLow / (double)matches.length;
 		}
 		return score;
 	}
@@ -248,10 +254,10 @@ public class APIUtils {
 	}
 	
 	public static class Score{
-		public double totalPoints, teleopPoints, autoPoints, autoRotorPoints, autoMobilityPoints, autoFuelHigh, autoFuelLow;
+		public double totalPoints, teleopPoints, autoPoints, autoRotorPoints, autoMobilityPoints, autoFuelHigh, autoFuelLow, teleopRotorPoints, teleopFuelHigh, teleopFuelLow;
 		
 		public double[] getFields(){
-			return new double[]{totalPoints, teleopPoints, autoPoints, autoRotorPoints, autoMobilityPoints, autoFuelHigh, autoFuelLow};
+			return new double[]{totalPoints, teleopPoints, autoPoints, autoRotorPoints, autoMobilityPoints, autoFuelHigh, autoFuelLow, teleopRotorPoints, teleopFuelHigh, teleopFuelLow};
 		}
 		
 		@Override
