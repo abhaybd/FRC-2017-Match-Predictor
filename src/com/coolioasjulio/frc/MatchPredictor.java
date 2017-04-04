@@ -49,27 +49,29 @@ public class MatchPredictor {
 	 * @throws IOException if connection fails
 	 */
 	public void train() throws IOException{
-		buildIndexes();
+		//buildIndexes();
 		try {
 			Thread.sleep(1000);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		DataPoint[] dps = getData();
+		DataPoint[] dps = loadData();
 		saveData(dps,"data.dat");
-		double[][] inputs = new double[dps.length][];
-		double[][] outputs = new double[dps.length][];
-		for(int i = 0; i < dps.length; i++){
+		double[][] inputs = new double[dps.length-100][];
+		double[][] outputs = new double[dps.length-100][];
+		for(int i = 0; i < inputs.length; i++){
 			inputs[i] = dps[i].input;
 			outputs[i] = dps[i].output;
 		}
-		System.out.println(Arrays.toString(dps) + dps.length);
-		network.train(inputs, outputs, 0.1, 0.9, 3000);
+		System.out.println(Arrays.toString(dps) + (dps.length-100));
+		network.train(inputs, outputs, 0.1, 0.9, 5000);
 		
 		ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("match.net"));
 		oos.writeObject(network);
 		oos.flush();
 		oos.close();
+		
+		test(network, Arrays.copyOfRange(dps, dps.length-100, dps.length));
 	}
 	
 	/**
@@ -116,6 +118,36 @@ public class MatchPredictor {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private void test(NeuralNetwork network, DataPoint[] dps){
+		int numCorrect = 0;
+		int total = 0;
+		for(DataPoint dp:dps){
+			double[] guess = network.guess(dp.input);
+			int guessWinner = indexOfMax(guess);
+			int actualWinner = indexOfMax(dp.output);
+			if(guessWinner == actualWinner){
+				numCorrect++;
+			}
+			total++;
+			System.out.println(Arrays.toString(dp.output));
+			System.out.println(Arrays.toString(guess));
+			System.out.println((guessWinner == actualWinner) + "\n");
+		}
+		System.out.printf("Guessed %s out of %s correctly!\n", numCorrect, total);
+	}
+	
+	private int indexOfMax(double[] arr){
+		int index = 0;
+		double max = arr[0];
+		for(int i = 0; i < arr.length; i++){
+			if(arr[i] > max){
+				max = arr[i];
+				index = i;
+			}
+		}
+		return index;
 	}
 	
 	/**
@@ -222,10 +254,19 @@ public class MatchPredictor {
 	 */
 	private String[] getTeams(Scanner in){
 		List<String> teams = new ArrayList<String>();
-		System.out.println("Teams on blue alliance? Input in a list, separated only by commas. Ex: frc492,frc420,frc6969");
-		teams.addAll(Arrays.asList(in.nextLine().replace(" ", "").split(",")));
-		System.out.println("Teams on red alliance? Input in a list, separated only by commas. Ex: frc492,frc420,frc6969");
-		teams.addAll(Arrays.asList(in.nextLine().replace(" ", ",").split(",")));
+		boolean running = true;
+		while(running){
+			running = false;
+			teams.clear();
+			System.out.println("Teams on blue alliance? Input in a list, separated only by commas. Ex: frc492,frc420,frc6969");
+			teams.addAll(Arrays.asList(in.nextLine().replace(" ", "").split(",")));
+			System.out.println("Teams on red alliance? Input in a list, separated only by commas. Ex: frc492,frc420,frc6969");
+			teams.addAll(Arrays.asList(in.nextLine().replace(" ", ",").split(",")));
+			if(teams.size() != 6){
+				System.out.println("Incorrect number of teams entered!");
+				running = true;
+			}
+		}
 		return teams.toArray(new String[0]);
 	}
 	
