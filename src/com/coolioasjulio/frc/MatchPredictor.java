@@ -24,10 +24,13 @@ public class MatchPredictor {
 	public static void main(String[] args){
 		MatchPredictor mp = new MatchPredictor();
 		try (Scanner in = new Scanner(System.in)){
-			System.out.println("Train again with updated data? This will take a while. y/n");
-			char response = in.nextLine().charAt(0);
-			if(response != 'n'){
-				mp.train();				
+			System.out.println("Type a command: build/train/run");
+			String response = in.nextLine();
+			if(response.equalsIgnoreCase("build")){
+				mp.buildIndexes();
+			}
+			else if(response.equalsIgnoreCase("train")){
+				mp.train();
 			}
 			mp.guessRepeat();
 		} catch (IOException e) {
@@ -119,7 +122,7 @@ public class MatchPredictor {
 	 * Build team indexes
 	 * @throws IOException if TBA API fails
 	 */
-	private void buildIndexes() throws IOException{
+	public void buildIndexes() throws IOException{
 		List<Team> teams = new ArrayList<Team>();
 		//teams.addAll(Arrays.asList(APIUtils.getTeams("pnw", 2017)));
 		String[] regions = new String[]{"chs","fim","in","isr","mar","nc","ne","ont","pch","pnw"};
