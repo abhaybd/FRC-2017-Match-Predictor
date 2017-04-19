@@ -43,6 +43,11 @@ public class APIUtils {
 		return (T)gson.fromJson(reader, type);
 	}
 	
+	public static Match[] getEventMatches(String key) throws IOException{
+		List<Match> matches = getJSON(String.format("/event/%s/matches", key), new TypeToken<List<Match>>(){}.getType());
+		return matches.toArray(new Match[0]);
+	}
+	
 	/**
 	 * Get all Matches in an event
 	 * @param event Event to get matches from

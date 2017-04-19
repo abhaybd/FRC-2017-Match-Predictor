@@ -75,42 +75,51 @@ public class MatchPredictor {
 	}
 	
 	/**
+	 * Parse the teams and return the estimated winner
+	 * @param teams String[] of teams
+	 * @return double[] representing the output of the neural network
+	 * @throws IOException if connection fails
+	 */
+	public double[] guess(String[] teams) throws IOException{
+		double[] input = new double[60];
+		String[] blue = Arrays.copyOfRange(teams, 0, 3);
+		String[] red = Arrays.copyOfRange(teams, 3, 6);
+		
+		List<Score> blueScoreList = new ArrayList<Score>();
+		for(String id:blue){
+			blueScoreList.add(normalizeScore(getScore(id)));
+		}
+		
+		List<Score> redScoreList = new ArrayList<Score>();
+		for(String id:red){
+			redScoreList.add(normalizeScore(getScore(id)));
+		}
+		
+		double[] blueScore = sortScores(blueScoreList.toArray(new Score[0]));
+		double[] redScore = sortScores(redScoreList.toArray(new Score[0]));
+		
+		for(int i = 0; i < input.length; i++){
+			if(i < 30){
+				input[i] = blueScore[i];
+			}
+			else{
+				input[i] = redScore[i-30];
+			}
+		}
+		return network.guess(input,true);
+	}
+	
+	/**
 	 * Prompt the user for repeated guesses
 	 */
 	public void guessRepeat(){
 		try(Scanner in = new Scanner(System.in)){
 			network = loadNetwork();
-			double[] input = new double[60];
 			while(true){
 				String[] teams = getTeams(in);
 				
-				String[] blue = Arrays.copyOfRange(teams, 0, 3);
-				String[] red = Arrays.copyOfRange(teams, 3, 6);
+				double[] result = guess(teams);				
 				
-				List<Score> blueScoreList = new ArrayList<Score>();
-				for(String id:blue){
-					blueScoreList.add(normalizeScore(getScore(id)));
-				}
-				
-				List<Score> redScoreList = new ArrayList<Score>();
-				for(String id:red){
-					redScoreList.add(normalizeScore(getScore(id)));
-				}
-				
-				double[] blueScore = sortScores(blueScoreList.toArray(new Score[0]));
-				double[] redScore = sortScores(redScoreList.toArray(new Score[0]));
-				
-				for(int i = 0; i < input.length; i++){
-					if(i < 30){
-						input[i] = blueScore[i];
-					}
-					else{
-						input[i] = redScore[i-30];
-					}
-				}
-				
-				System.out.println(Arrays.toString(input));
-				double[] result = network.guess(input, true);
 				System.out.println("Blue probability: " + (float)result[0]*100f + "%");
 				System.out.println("Red probability: " + (float)result[1]*100f + "%");
 				System.out.println("Tie probability: " + (float)result[2]*100f + "%");			
